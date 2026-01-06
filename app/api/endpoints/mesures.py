@@ -10,9 +10,9 @@ from app.core.alerts import verifier_et_creer_alertes
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.Mesure, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def recevoir_mesure(
-    mesure: schemas.MesureBase,
+    mesure: schemas.MesureCreate,
     db: Session = Depends(get_db)
 ):
     """
@@ -52,8 +52,13 @@ async def recevoir_mesure(
         # 3. Vérifier si des alertes doivent être créées
         verifier_et_creer_alertes(db, borne, nouvelle_mesure)
         
-        # 4. Retourner la mesure créée
-        return nouvelle_mesure
+        # 4. Retourner un simple message de succès
+        return {
+            "message": "Mesure enregistrée avec succès",
+            "id_mesure": nouvelle_mesure.id_mesure,
+            "id_borne": nouvelle_mesure.id_borne,
+            "horodatage": nouvelle_mesure.horodatage.isoformat()
+        }
         
     except IntegrityError as e:
         db.rollback()

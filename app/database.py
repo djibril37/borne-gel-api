@@ -2,13 +2,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 # 1. Créer le moteur de connexion à la base de données
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=True,  # Affiche les requêtes SQL dans le terminal (utile pour le débogage)
-    pool_pre_ping=True  # Vérifie que la connexion est toujours active
-)
+try:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        echo=True,  # Affiche les requêtes SQL dans le terminal
+        pool_pre_ping=True
+    )
+    logger.info(f"Connexion à la base de données établie: {settings.DATABASE_URL}")
+except Exception as e:
+    logger.error(f"Erreur de connexion à la base de données: {str(e)}")
+    raise
 
 # 2. Créer une fabrique de sessions
 SessionLocal = sessionmaker(
@@ -29,5 +37,8 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        logger.error(f"Erreur de session DB: {str(e)}")
+        raise
     finally:
         db.close()

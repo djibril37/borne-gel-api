@@ -26,8 +26,8 @@ class TypeInterventionEnum(str, Enum):
     changement_batterie = "changement_batterie"
     maintenance = "maintenance"
 
-# Modèles de base (sans ID)
-class MesureBase(BaseModel):
+# Modèles de base (sans ID) - Pour les requêtes POST
+class MesureCreate(BaseModel):
     uuid_esp: str = Field(..., min_length=1, max_length=255)
     niveau_gel: int = Field(..., ge=0, le=100, description="Niveau de gel en pourcentage (0-100)")
     niveau_batterie: int = Field(..., ge=0, le=100, description="Niveau de batterie en pourcentage (0-100)")
@@ -48,16 +48,18 @@ class UtilisateurBase(BaseModel):
     role: RoleEnum
 
 class UtilisateurCreate(UtilisateurBase):
-    mot_de_passe: str = Field(..., min_length=6)
+    mot_de_passe: str = Field(..., min_length=4, max_length=20)  # Limité à 20 caractères pour bcrypt
 
 class UtilisateurLogin(BaseModel):
     email: EmailStr
     mot_de_passe: str
 
-# Modèles avec ID (pour les réponses)
-class Mesure(MesureBase):
+# Modèles avec ID (pour les réponses) - Correspondent aux modèles SQLAlchemy
+class Mesure(BaseModel):
     id_mesure: int
     id_borne: int
+    niveau_gel: int
+    niveau_batterie: int
     horodatage: datetime
     
     class Config:

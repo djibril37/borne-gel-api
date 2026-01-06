@@ -14,11 +14,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Fonctions pour le hachage et vérification des mots de passe
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Vérifie si un mot de passe en clair correspond au hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Tronquer le mot de passe à 72 caractères pour bcrypt
+    truncated_password = plain_password[:72]
+    return pwd_context.verify(truncated_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Crée un hash sécurisé d'un mot de passe."""
-    return pwd_context.hash(password)
+    # Tronquer le mot de passe à 72 caractères pour bcrypt
+    truncated_password = password[:72]
+    return pwd_context.hash(truncated_password)
 
 # Fonctions pour les tokens JWT
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
