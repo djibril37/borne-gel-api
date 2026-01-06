@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+
+# Import des routeurs
 from app.api.endpoints import mesures, auth, bornes
 
 # Création de l'application FastAPI
@@ -12,21 +14,20 @@ app = FastAPI(
         "name": "Équipe Borne Gel",
         "email": "contact@bornegel.fr",
     },
-    docs_url="/docs",  # Documentation Swagger UI
-    redoc_url="/redoc",  # Documentation ReDoc
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
-# Configuration CORS (Cross-Origin Resource Sharing)
-# Permet à votre API d'être appelée depuis d'autres domaines (frontend, app mobile, etc.)
+# Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En développement, autorise tout. En production, spécifiez les domaines.
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # GET, POST, PUT, DELETE, etc.
-    allow_headers=["*"],  # Tous les headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Inclure les routeurs (endpoints)
+# Inclure les routeurs
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentification"])
 app.include_router(mesures.router, prefix="/api/mesures", tags=["Mesures"])
 app.include_router(bornes.router, prefix="/api/bornes", tags=["Bornes"])
@@ -34,10 +35,6 @@ app.include_router(bornes.router, prefix="/api/bornes", tags=["Bornes"])
 # Route racine
 @app.get("/", tags=["Accueil"])
 async def root():
-    """
-    Point d'entrée de l'API.
-    Retourne des informations de base sur l'API.
-    """
     return {
         "message": "Bienvenue sur l'API Borne Gel Connectée",
         "version": "1.0.0",
@@ -45,32 +42,22 @@ async def root():
         "description": "API pour la gestion des bornes de gel hydroalcoolique connectées"
     }
 
-# Route de santé (health check)
+# Route de santé
 @app.get("/health", tags=["Système"])
 async def health_check():
-    """
-    Vérifie que l'API fonctionne correctement.
-    Utilisé par les systèmes de monitoring.
-    """
+    from datetime import datetime
     return {
         "status": "healthy",
         "service": "borne-gel-api",
-        "timestamp": "{{timestamp}}"
+        "timestamp": datetime.utcnow().isoformat()
     }
 
-# Route d'information sur la base de données
+# Route d'information
 @app.get("/info", tags=["Système"])
 async def system_info():
-    """
-    Retourne des informations sur la configuration du système.
-    """
     return {
         "debug_mode": settings.DEBUG,
         "database_url": settings.DATABASE_URL[:20] + "..." if settings.DATABASE_URL else None,
         "jwt_algorithm": settings.JWT_ALGORITHM,
         "token_expire_minutes": settings.ACCESS_TOKEN_EXPIRE_MINUTES
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

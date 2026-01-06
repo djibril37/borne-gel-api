@@ -2,10 +2,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
 
 # Configuration du hachage des mots de passe
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Pour OAuth2
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Fonctions pour le hachage et vérification des mots de passe
 def verify_password(plain_password: str, hashed_password: str) -> bool:
