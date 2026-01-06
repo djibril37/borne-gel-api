@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartGel - Administration</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="admin">
+    <header>
+        <h1>SmartGel Dashboard - Administrateur</h1>
+        <nav><a href="index.html">Retour à l'accueil</a></nav>
+    </header>
+
+    <main class="container">
+        <section class="config-panel">
+            <h2>⚙️ Gestion des Seuils d'Alerte</h2>
+            <div class="form-group">
+                <label>Seuil Gel (%) : <input type="number" id="input-gel" value="10"></label>
+                <label>Seuil Batterie (%) : <input type="number" id="input-batt" value="10"></label>
+                <button id="btn-apply">Appliquer les seuils</button>
+            </div>
+        </section>
+
+        <section id="bornes-container" class="grid"></section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
