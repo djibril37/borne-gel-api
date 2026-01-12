@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartGel - RA</title>
+    <link rel="stylesheet" href="Style2.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <h2>SmartGel Manager</h2>
+        <button class="nav-btn active" onclick="showTab('bornes')">📦 Bornes</button>
+        <button class="nav-btn" onclick="showTab('missions')">📋 Missions</button>
+        <button class="nav-btn" onclick="showTab('params')">⚙️ Paramètres</button>
+        <button class="btn-logout" onclick="logout()">Quitter</button>
+    </aside>
+    <main>
+        <div id="bornes" class="section active">
+            <h2>Gestion des Agents (RA)</h2>
+            <div id="borneGrid" class="grid"></div>
+        </div>
+        <div id="missions" class="section">
+            <h2>Suivi des Missions</h2>
+            <div class="card">Liste des interventions en cours.</div>
+        </div>
+        <div id="params" class="section">
+            <h2>Seuils</h2>
+            <div class="card" style="max-width:400px;"><input type="number" value="10"><button class="btn-primary">Sauver</button></div>
+        </div>
+    </main>
+    <script src="script2.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartGel - Agent</title>
+    <link rel="stylesheet" href="Style2.css">
+</head>
+<body>
+    <aside class="sidebar">
+        <h2>SmartGel Agent</h2>
+        <button class="nav-btn active" onclick="showTab('bornes')">📦 Mes Bornes</button>
+        <button class="btn-logout" onclick="logout()">Quitter</button>
+    </aside>
+    <main>
+        <div id="bornes" class="section active">
+            <h2>Mes Missions de Maintenance</h2>
+            <div id="borneGrid" class="grid"></div>
+        </div>
+    </main>
+    <script src="script2.js"></script>
+</body>
+</html>
