@@ -6,10 +6,10 @@ import enum
 
 # Enumérations pour les rôles
 class RoleEnum(str, enum.Enum):
-    FOURNISSEUR = "fournisseur"
-    RESPONSABLE_TECHNIQUE = "responsable_technique"
-    RESPONSABLE_AGENT = "responsable_agent"
-    AGENT = "agent"
+    fournisseur = "fournisseur"
+    responsable_technique = "responsable_technique"
+    responsable_agent = "responsable_agent"
+    agent = "agent"
 
 # Enumération pour les types d'alerte
 class TypeAlerteEnum(str, enum.Enum):

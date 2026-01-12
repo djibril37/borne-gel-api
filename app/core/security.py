@@ -6,7 +6,8 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
 
 # Configuration du hachage des mots de passe
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Utilisons sha256_crypt au lieu de bcrypt pour éviter le problème de version
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # Pour OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -14,15 +15,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Fonctions pour le hachage et vérification des mots de passe
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Vérifie si un mot de passe en clair correspond au hash."""
-    # Tronquer le mot de passe à 72 caractères pour bcrypt
-    truncated_password = plain_password[:72]
-    return pwd_context.verify(truncated_password, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Crée un hash sécurisé d'un mot de passe."""
-    # Tronquer le mot de passe à 72 caractères pour bcrypt
-    truncated_password = password[:72]
-    return pwd_context.hash(truncated_password)
+    return pwd_context.hash(password)
 
 # Fonctions pour les tokens JWT
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
