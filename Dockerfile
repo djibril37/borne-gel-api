@@ -1,9 +1,9 @@
-
 FROM python:3.11-slim
 
-WORKDIR /app
+# Docker va créer ce dossier tout seul
+WORKDIR /code
 
-# Installer les dépendances système nécessaires
+# Installer les dépendances système (On garde tes bonnes pratiques !)
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code de l'application
-COPY ./app /app
+# LA CLÉ DU SUCCÈS : On copie ton dossier 'app' DANS un dossier 'app'
+COPY ./app ./app
 
 # Exposer le port
 EXPOSE 8000
 
-# Commande pour démarrer l'application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# On lance en précisant bien le chemin complet
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
