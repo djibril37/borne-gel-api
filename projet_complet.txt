@@ -1,0 +1,1478 @@
+=== STRUCTURE DU PROJET ===
+./
+    requirements.txt
+    .env.example
+    README_API.md
+    TEST_API.md
+    create_user.py
+    README.md
+    Pour-tout-envoyer-a-Gemini/
+    scripts/
+        init_database.sql
+    app/
+        models.py
+        main.py
+        database.py
+        schemas.py
+        __init__.py
+        crud.py
+        api/
+            __init__.py
+            endpoints/
+                auth.py
+                test.py
+                bornes.py
+                __init__.py
+                mesures.py
+        core/
+            config.py
+            security.py
+            alerts.py
+            __init__.py
+
+
+=== CONTENU DES FICHIERS ===
+
+
+==================== FICHIER : ./requirements.txt ====================
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+pymysql==1.1.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+alembic==1.12.1
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+email-validator>=2.0.0
+
+
+==================== FICHIER : ./README_API.md ====================
+# API Borne Gel - Documentation Développeur
+
+## 📍 Accès
+- URL : https://vigilant-eureka-694g4v6w6p9xcg7x-8000.app.github.dev
+- Compte test : 
+
+## 🔑 Authentification JWT
+1. POST /api/auth/login → obtient un token
+2. Header : Authorization: Bearer {token}
+3. Token expire après 30 min
+
+## 📡 Endpoints
+- `GET /api/bornes` - Liste bornes
+- `GET /api/mesures` - Historique mesures
+- `POST /api/mesures` - Ajouter mesure
+- `GET /api/auth/me` - Profil utilisateur
+
+## 🛠️ Test
+- Swagger UI : /docs
+- Postman : Importez depuis Swagger
+
+## 📞 Support
+Contact : [Votre nom]
+Statut : ✅ Production Ready
+
+
+==================== FICHIER : ./TEST_API.md ====================
+# 🚀 Comment tester l'API Borne Gel
+
+## 📍 URL de l'API
+https://vigilant-eureka-694g4v6w6p9xcg7x-8000.app.github.dev
+
+## 🔐 Compte de test
+Email: admin@bornegel.fr
+Mot de passe: admin123
+
+## 📖 Documentation interactive
+- **Swagger UI** (tester directement) : https://vigilant-eureka-694g4v6w6p9xcg7x-8000.app.github.dev/docs
+- **Redoc** (lire la doc) : https://vigilant-eureka-694g4v6w6p9xcg7x-8000.app.github.dev/redoc
+
+## 🔧 Test avec Postman
+
+### Étape 1 : Login
+1. **Méthode** : POST
+2. **URL** : `https://vigilant-eureka-694g4v6w6p9xcg7x-8000.app.github.dev/api/auth/login`
+3. **Body** : Sélectionnez `x-www-form-urlencoded`
+4. **Paramètres** :
+   - `username`: admin@bornegel.fr
+   - `password`: admin123
+
+### Étape 2 : Récupérer le token
+Si le login réussit, vous recevrez :
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer"
+}
+
+==================== FICHIER : ./create_user.py ====================
+from app.core.security import get_password_hash
+from app.database import SessionLocal
+from app.models import Utilisateur, RoleEnum
+
+print("🔧 Création/réparation de l'utilisateur admin...")
+
+db = SessionLocal()
+
+try:
+    # Vérifiez d'abord si l'utilisateur existe
+    existing = db.query(Utilisateur).filter(Utilisateur.email == "admin@bornegel.fr").first()
+    
+    if existing:
+        print(f"⚠️  Utilisateur existe déjà: {existing.email}")
+        print(f"Hash actuel: {existing.mot_de_passe_hash}")
+        print(f"Longueur du hash: {len(existing.mot_de_passe_hash)}")
+        
+        # Générez un nouveau hash correct
+        print("\n🔐 Génération d'un nouveau hash pour 'admin123'...")
+        new_hash = get_password_hash("admin123")
+        print(f"Nouveau hash: {new_hash}")
+        print(f"Longueur nouveau hash: {len(new_hash)}")
+        
+        # Mettez à jour le hash
+        existing.mot_de_passe_hash = new_hash
+        db.commit()
+        print("✅ Mot de passe mis à jour avec succès!")
+        
+    else:
+        print("❌ Utilisateur non trouvé, création...")
+        new_hash = get_password_hash("admin123")
+        new_user = Utilisateur(
+            email="admin@bornegel.fr",
+            mot_de_passe_hash=new_hash,
+            nom="Admin",
+            prenom="System",
+            role=RoleEnum.fournisseur
+        )
+        db.add(new_user)
+        db.commit()
+        print(f"✅ Utilisateur créé avec succès!")
+        print(f"Hash généré: {new_hash}")
+        
+except Exception as e:
+    print(f"❌ Erreur: {e}")
+    import traceback
+    traceback.print_exc()
+    db.rollback()
+    
+finally:
+    db.close()
+    print("\n✨ Script terminé!")
+
+print("\n🎯 Maintenant testez avec:")
+print("curl -X POST http://localhost:8000/api/auth/login \\")
+print('  -d "username=admin@bornegel.fr" \\')
+print('  -d "password=admin123"')
+
+
+==================== FICHIER : ./README.md ====================
+# borne-gel-api
+API REST pour le projet BTS Borne de Gel Connectée
+
+
+==================== FICHIER : ./scripts/init_database.sql ====================
+-- Création de la base de données
+CREATE DATABASE IF NOT EXISTS borne_gel_db;
+USE borne_gel_db;
+
+-- Table utilisateurs
+CREATE TABLE IF NOT EXISTS utilisateurs (
+    id_utilisateur INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    mot_de_passe_hash VARCHAR(255) NOT NULL,
+    nom VARCHAR(100),
+    prenom VARCHAR(100),
+    role ENUM('FOURNISSEUR', 'RESPONSABLE_TECHNIQUE', 'RESPONSABLE_AGENT', 'AGENT') NOT NULL,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    est_actif BOOLEAN DEFAULT TRUE
+);
+
+-- Table sites
+CREATE TABLE IF NOT EXISTS sites (
+    id_site INT PRIMARY KEY AUTO_INCREMENT,
+    nom_site VARCHAR(255) NOT NULL,
+    adresse TEXT,
+    id_responsable_technique INT,
+    FOREIGN KEY (id_responsable_technique) REFERENCES utilisateurs(id_utilisateur)
+);
+
+-- Table bornes
+CREATE TABLE IF NOT EXISTS bornes (
+    id_borne INT PRIMARY KEY AUTO_INCREMENT,
+    uuid_esp VARCHAR(255) UNIQUE NOT NULL,
+    nom_borne VARCHAR(100) DEFAULT 'Borne sans nom',
+    id_site INT NOT NULL,
+    salle_local VARCHAR(100) NOT NULL,
+    seuil_alerte_gel INT DEFAULT 10,
+    seuil_alerte_batterie INT DEFAULT 10,
+    id_agent_affecte INT,
+    date_installation DATE,
+    est_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_site) REFERENCES sites(id_site),
+    FOREIGN KEY (id_agent_affecte) REFERENCES utilisateurs(id_utilisateur),
+    INDEX idx_site (id_site),
+    INDEX idx_agent (id_agent_affecte)
+);
+
+-- Table mesures
+CREATE TABLE IF NOT EXISTS mesures (
+    id_mesure BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id_borne INT NOT NULL,
+    niveau_gel INT NOT NULL,
+    niveau_batterie INT NOT NULL,
+    horodatage DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_borne) REFERENCES bornes(id_borne),
+    INDEX idx_borne_horodatage (id_borne, horodatage DESC)
+);
+
+-- Table alertes
+CREATE TABLE IF NOT EXISTS alertes (
+    id_alerte INT PRIMARY KEY AUTO_INCREMENT,
+    id_borne INT NOT NULL,
+    type_alerte ENUM('gel_bas', 'batterie_basse', 'gel_critique', 'batterie_critique') NOT NULL,
+    niveau_valeur INT NOT NULL,
+    statut ENUM('nouvelle', 'assignee', 'resolue') DEFAULT 'nouvelle',
+    id_agent_assignee INT,
+    date_declenchement DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_resolution DATETIME,
+    FOREIGN KEY (id_borne) REFERENCES bornes(id_borne),
+    FOREIGN KEY (id_agent_assignee) REFERENCES utilisateurs(id_utilisateur),
+    INDEX idx_statut (statut),
+    INDEX idx_borne (id_borne)
+);
+
+-- Table interventions
+CREATE TABLE IF NOT EXISTS interventions (
+    id_intervention INT PRIMARY KEY AUTO_INCREMENT,
+    id_borne INT NOT NULL,
+    id_agent INT NOT NULL,
+    type_intervention ENUM('remplissage_gel', 'changement_batterie', 'maintenance') NOT NULL,
+    date_intervention DATETIME DEFAULT CURRENT_TIMESTAMP,
+    commentaire TEXT,
+    FOREIGN KEY (id_borne) REFERENCES bornes(id_borne),
+    FOREIGN KEY (id_agent) REFERENCES utilisateurs(id_utilisateur)
+);
+
+-- Insertion d'un utilisateur administrateur de test (mot de passe: admin123)
+INSERT INTO utilisateurs (email, mot_de_passe_hash, nom, prenom, role) VALUES
+('admin@bornegel.fr', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Admin', 'System', 'fournisseur');
+
+-- Insertion d'un site de test
+INSERT INTO sites (nom_site, adresse, id_responsable_technique) VALUES
+('Lycée Jean Rostand - Bâtiment A', '123 Avenue de la République, Villepinte', 1);
+
+-- Insertion d'une borne de test
+INSERT INTO bornes (uuid_esp, nom_borne, id_site, salle_local, seuil_alerte_gel, seuil_alerte_batterie) VALUES
+('ESP32-001', 'Borne Entrée Principale', 1, 'Hall RDC', 15, 20);
+
+
+==================== FICHIER : ./app/models.py ====================
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum, ForeignKey, Date, BigInteger
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+import enum
+
+# Enumérations pour les rôles
+class RoleEnum(str, enum.Enum):
+    fournisseur = "fournisseur"
+    responsable_technique = "responsable_technique"
+    responsable_agent = "responsable_agent"
+    agent = "agent"
+
+# Enumération pour les types d'alerte
+class TypeAlerteEnum(str, enum.Enum):
+    GEL_BAS = "gel_bas"
+    BATTERIE_BASSE = "batterie_basse"
+    GEL_CRITIQUE = "gel_critique"
+    BATTERIE_CRITIQUE = "batterie_critique"
+
+# Enumération pour le statut des alertes
+class StatutAlerteEnum(str, enum.Enum):
+    NOUVELLE = "nouvelle"
+    ASSIGNEE = "assignee"
+    RESOLUE = "resolue"
+
+# Enumération pour les types d'intervention
+class TypeInterventionEnum(str, enum.Enum):
+    REMPLISSAGE_GEL = "remplissage_gel"
+    CHANGEMENT_BATTERIE = "changement_batterie"
+    MAINTENANCE = "maintenance"
+
+# Table utilisateurs
+class Utilisateur(Base):
+    __tablename__ = "utilisateurs"
+    
+    id_utilisateur = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    mot_de_passe_hash = Column(String(255), nullable=False)
+    nom = Column(String(100))
+    prenom = Column(String(100))
+    role = Column(Enum(RoleEnum), nullable=False)
+    date_creation = Column(DateTime, server_default=func.now())
+    est_actif = Column(Boolean, default=True)
+    
+    # Relations
+    sites_responsable = relationship("Site", back_populates="responsable_technique")
+    bornes_affectees = relationship("Borne", back_populates="agent_affecte")
+    alertes_assignees = relationship("Alerte", back_populates="agent_assignee")
+    interventions = relationship("Intervention", back_populates="agent")
+
+# Table sites
+class Site(Base):
+    __tablename__ = "sites"
+    
+    id_site = Column(Integer, primary_key=True, index=True)
+    nom_site = Column(String(255), nullable=False)
+    adresse = Column(Text)
+    id_responsable_technique = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"))
+    
+    # Relations
+    responsable_technique = relationship("Utilisateur", back_populates="sites_responsable")
+    bornes = relationship("Borne", back_populates="site")
+
+# Table bornes
+class Borne(Base):
+    __tablename__ = "bornes"
+    
+    id_borne = Column(Integer, primary_key=True, index=True)
+    uuid_esp = Column(String(255), unique=True, nullable=False, index=True)
+    nom_borne = Column(String(100), default="Borne sans nom")
+    id_site = Column(Integer, ForeignKey("sites.id_site"), nullable=False)
+    salle_local = Column(String(100), nullable=False)
+    seuil_alerte_gel = Column(Integer, default=10)
+    seuil_alerte_batterie = Column(Integer, default=10)
+    id_agent_affecte = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"))
+    date_installation = Column(Date)
+    est_active = Column(Boolean, default=True)
+    
+    # Relations
+    site = relationship("Site", back_populates="bornes")
+    agent_affecte = relationship("Utilisateur", back_populates="bornes_affectees")
+    mesures = relationship("Mesure", back_populates="borne")
+    alertes = relationship("Alerte", back_populates="borne")
+    interventions = relationship("Intervention", back_populates="borne")
+
+# Table mesures
+class Mesure(Base):
+    __tablename__ = "mesures"
+    
+    id_mesure = Column(BigInteger, primary_key=True, index=True)
+    id_borne = Column(Integer, ForeignKey("bornes.id_borne"), nullable=False)
+    niveau_gel = Column(Integer, nullable=False)  # Pourcentage (0-100)
+    niveau_batterie = Column(Integer, nullable=False)  # Pourcentage (0-100)
+    horodatage = Column(DateTime, server_default=func.now())
+    
+    # Relations
+    borne = relationship("Borne", back_populates="mesures")
+
+# Table alertes
+class Alerte(Base):
+    __tablename__ = "alertes"
+    
+    id_alerte = Column(Integer, primary_key=True, index=True)
+    id_borne = Column(Integer, ForeignKey("bornes.id_borne"), nullable=False)
+    type_alerte = Column(Enum(TypeAlerteEnum), nullable=False)
+    niveau_valeur = Column(Integer, nullable=False)
+    statut = Column(Enum(StatutAlerteEnum), default=StatutAlerteEnum.NOUVELLE)
+    id_agent_assignee = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"))
+    date_declenchement = Column(DateTime, server_default=func.now())
+    date_resolution = Column(DateTime)
+    
+    # Relations
+    borne = relationship("Borne", back_populates="alertes")
+    agent_assignee = relationship("Utilisateur", back_populates="alertes_assignees")
+
+# Table interventions
+class Intervention(Base):
+    __tablename__ = "interventions"
+    
+    id_intervention = Column(Integer, primary_key=True, index=True)
+    id_borne = Column(Integer, ForeignKey("bornes.id_borne"), nullable=False)
+    id_agent = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"), nullable=False)
+    type_intervention = Column(Enum(TypeInterventionEnum), nullable=False)
+    date_intervention = Column(DateTime, server_default=func.now())
+    commentaire = Column(Text)
+    
+    # Relations
+    borne = relationship("Borne", back_populates="interventions")
+    agent = relationship("Utilisateur", back_populates="interventions")
+
+
+==================== FICHIER : ./app/main.py ====================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+
+# Import des routeurs
+from app.api.endpoints import mesures, auth, bornes
+
+# Création de l'application FastAPI
+app = FastAPI(
+    title="API Borne Gel Connectée",
+    description="API REST pour la gestion des bornes de gel hydroalcoolique - Projet BTS CIEL",
+    version="1.0.0",
+    contact={
+        "name": "Équipe Borne Gel",
+        "email": "contact@bornegel.fr",
+    },
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# Configuration CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inclure les routeurs
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentification"])
+app.include_router(mesures.router, prefix="/api/mesures", tags=["Mesures"])
+app.include_router(bornes.router, prefix="/api/bornes", tags=["Bornes"])
+
+# Route racine
+@app.get("/", tags=["Accueil"])
+async def root():
+    return {
+        "message": "Bienvenue sur l'API Borne Gel Connectée",
+        "version": "1.0.0",
+        "documentation": "/docs",
+        "description": "API pour la gestion des bornes de gel hydroalcoolique connectées"
+    }
+
+# Route de santé
+@app.get("/health", tags=["Système"])
+async def health_check():
+    from datetime import datetime
+    return {
+        "status": "healthy",
+        "service": "borne-gel-api",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+# Route d'information
+@app.get("/info", tags=["Système"])
+async def system_info():
+    return {
+        "debug_mode": settings.DEBUG,
+        "database_url": settings.DATABASE_URL[:20] + "..." if settings.DATABASE_URL else None,
+        "jwt_algorithm": settings.JWT_ALGORITHM,
+        "token_expire_minutes": settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    }
+
+
+==================== FICHIER : ./app/database.py ====================
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from app.core.config import settings
+import logging
+
+logger = logging.getLogger("uvicorn.error")
+
+# 1. Créer le moteur de connexion à la base de données
+try:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        echo=True,  # Affiche les requêtes SQL dans le terminal
+        pool_pre_ping=True
+    )
+    logger.info(f"Connexion à la base de données établie: {settings.DATABASE_URL}")
+except Exception as e:
+    logger.error(f"Erreur de connexion à la base de données: {str(e)}")
+    raise
+
+# 2. Créer une fabrique de sessions
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# 3. Base pour tous nos modèles SQLAlchemy
+Base = declarative_base()
+
+# 4. Fonction pour obtenir une session de base de données
+def get_db():
+    """
+    Fournit une session de base de données pour chaque requête.
+    Ferme automatiquement la session à la fin.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception as e:
+        logger.error(f"Erreur de session DB: {str(e)}")
+        raise
+    finally:
+        db.close()
+
+
+==================== FICHIER : ./app/schemas.py ====================
+from pydantic import BaseModel, EmailStr, Field, validator
+from datetime import datetime, date
+from typing import Optional, List
+from enum import Enum
+
+# Enums pour Pydantic
+class RoleEnum(str, Enum):
+    fournisseur = "fournisseur"
+    responsable_technique = "responsable_technique"
+    responsable_agent = "responsable_agent"
+    agent = "agent"
+
+class TypeAlerteEnum(str, Enum):
+    gel_bas = "gel_bas"
+    batterie_basse = "batterie_basse"
+    gel_critique = "gel_critique"
+    batterie_critique = "batterie_critique"
+
+class StatutAlerteEnum(str, Enum):
+    nouvelle = "nouvelle"
+    assignee = "assignee"
+    resolue = "resolue"
+
+class TypeInterventionEnum(str, Enum):
+    remplissage_gel = "remplissage_gel"
+    changement_batterie = "changement_batterie"
+    maintenance = "maintenance"
+
+# Modèles de base (sans ID) - Pour les requêtes POST
+class MesureCreate(BaseModel):
+    uuid_esp: str = Field(..., min_length=1, max_length=255)
+    niveau_gel: int = Field(..., ge=0, le=100, description="Niveau de gel en pourcentage (0-100)")
+    niveau_batterie: int = Field(..., ge=0, le=100, description="Niveau de batterie en pourcentage (0-100)")
+
+class BorneBase(BaseModel):
+    uuid_esp: str = Field(..., min_length=1, max_length=255)
+    nom_borne: str = Field(..., max_length=100)
+    id_site: int
+    salle_local: str = Field(..., max_length=100)
+    seuil_alerte_gel: int = Field(default=10, ge=1, le=100)
+    seuil_alerte_batterie: int = Field(default=10, ge=1, le=100)
+    id_agent_affecte: Optional[int] = None
+
+class UtilisateurBase(BaseModel):
+    email: EmailStr
+    nom: str = Field(..., max_length=100)
+    prenom: str = Field(..., max_length=100)
+    role: RoleEnum
+
+class UtilisateurCreate(UtilisateurBase):
+    mot_de_passe: str = Field(..., min_length=4, max_length=20)  # Limité à 20 caractères pour bcrypt
+
+class UtilisateurLogin(BaseModel):
+    email: EmailStr
+    mot_de_passe: str
+
+# Modèles avec ID (pour les réponses) - Correspondent aux modèles SQLAlchemy
+class Mesure(BaseModel):
+    id_mesure: int
+    id_borne: int
+    niveau_gel: int
+    niveau_batterie: int
+    horodatage: datetime
+    
+    class Config:
+        from_attributes = True
+
+class Borne(BorneBase):
+    id_borne: int
+    est_active: bool
+    date_installation: Optional[date] = None
+    
+    class Config:
+        from_attributes = True
+
+class Utilisateur(UtilisateurBase):
+    id_utilisateur: int
+    est_actif: bool
+    date_creation: datetime
+    
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    role: Optional[str] = None
+
+class AlerteBase(BaseModel):
+    type_alerte: TypeAlerteEnum
+    niveau_valeur: int
+    statut: StatutAlerteEnum = StatutAlerteEnum.nouvelle
+
+class Alerte(AlerteBase):
+    id_alerte: int
+    id_borne: int
+    date_declenchement: datetime
+    date_resolution: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+# Réponses pour l'API
+class BorneAvecDetails(Borne):
+    site_nom: Optional[str] = None
+    agent_nom: Optional[str] = None
+    dernier_niveau_gel: Optional[int] = None
+    dernier_niveau_batterie: Optional[int] = None
+    derniere_mesure: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class SiteBase(BaseModel):
+    nom_site: str = Field(..., max_length=255)
+    adresse: Optional[str] = None
+    id_responsable_technique: Optional[int] = None
+
+class Site(SiteBase):
+    id_site: int
+    
+    class Config:
+        from_attributes = True
+
+
+==================== FICHIER : ./app/__init__.py ====================
+
+
+==================== FICHIER : ./app/crud.py ====================
+[Le contenu complet ci-dessus]
+
+
+==================== FICHIER : ./app/api/__init__.py ====================
+
+
+==================== FICHIER : ./app/api/endpoints/auth.py ====================
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from datetime import timedelta
+
+from app.database import get_db
+from app import models, schemas
+from app.core import security
+from app.core.config import settings
+
+router = APIRouter()
+
+# Schéma OAuth2 pour l'authentification
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+@router.post("/login", response_model=schemas.Token)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Authentifie un utilisateur et retourne un token JWT.
+    
+    - **username**: Email de l'utilisateur
+    - **password**: Mot de passe
+    
+    Retourne un token JWT valide pour les requêtes suivantes.
+    """
+    # Rechercher l'utilisateur par email
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == form_data.username
+    ).first()
+    
+    # Vérifier si l'utilisateur existe et le mot de passe est correct
+    if not utilisateur or not security.verify_password(form_data.password, utilisateur.mot_de_passe_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Vérifier si le compte est actif
+    if not utilisateur.est_actif:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Compte désactivé",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Créer le token JWT
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        data={"sub": utilisateur.email, "role": utilisateur.role.value},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@router.post("/register", response_model=schemas.Utilisateur, status_code=status.HTTP_201_CREATED)
+async def register(
+    utilisateur: schemas.UtilisateurCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Crée un nouveau compte utilisateur.
+    
+    **Note**: Dans une version réelle, cet endpoint serait protégé
+    et seul un administrateur pourrait créer certains types de comptes.
+    """
+    # Vérifier si l'email est déjà utilisé
+    existing_user = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == utilisateur.email
+    ).first()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un compte avec cet email existe déjà"
+        )
+    
+    # Créer le nouvel utilisateur
+    nouvel_utilisateur = models.Utilisateur(
+        email=utilisateur.email,
+        mot_de_passe_hash=security.get_password_hash(utilisateur.mot_de_passe),
+        nom=utilisateur.nom,
+        prenom=utilisateur.prenom,
+        role=utilisateur.role
+    )
+    
+    try:
+        db.add(nouvel_utilisateur)
+        db.commit()
+        db.refresh(nouvel_utilisateur)
+        
+        return nouvel_utilisateur
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la création du compte: {str(e)}"
+        )
+
+@router.get("/me", response_model=schemas.Utilisateur)
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne les informations de l'utilisateur connecté.
+    
+    Utilise le token JWT pour identifier l'utilisateur.
+    """
+    email = security.get_current_user_email(token)
+    
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide ou expiré"
+        )
+    
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == email
+    ).first()
+    
+    if not utilisateur:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Utilisateur non trouvé"
+        )
+    
+    return utilisateur
+
+@router.get("/users", response_model=list[schemas.Utilisateur])
+async def get_all_users(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne la liste de tous les utilisateurs.
+    
+    **Accès restreint**: Seuls les administrateurs (fournisseur) peuvent utiliser cet endpoint.
+    """
+    # Vérifier le rôle de l'utilisateur via le token
+    payload = security.verify_token(token)
+    if not payload or payload.get("role") != "fournisseur":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès interdit: droits insuffisants"
+        )
+    
+    utilisateurs = db.query(models.Utilisateur).all()
+    return utilisateurs
+
+
+==================== FICHIER : ./app/api/endpoints/test.py ====================
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+
+router = APIRouter()
+
+@router.get("/test")
+async def test_endpoint():
+    return {"message": "Test endpoint works"}
+
+@router.get("/test-db")
+async def test_db(db: Session = Depends(get_db)):
+    try:
+        # Tester une requête simple
+        result = db.execute("SELECT COUNT(*) as count FROM bornes").fetchone()
+        return {
+            "status": "success",
+            "database": "connected",
+            "bornes_count": result[0] if result else 0
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "database": "disconnected",
+            "error": str(e)
+        }
+
+
+==================== FICHIER : ./app/api/endpoints/bornes.py ====================
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional
+
+from app.database import get_db
+from app import models, schemas
+from app.core import security
+from app.core.alerts import get_alertes_actives
+
+router = APIRouter()
+
+# Dépendance pour vérifier l'authentification
+def get_current_user_role(token: str = Depends(security.oauth2_scheme)) -> dict:
+    """Récupère le rôle de l'utilisateur depuis le token JWT."""
+    payload = security.verify_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide ou expiré"
+        )
+    return {"email": payload.get("sub"), "role": payload.get("role")}
+
+@router.get("/", response_model=List[schemas.BorneAvecDetails])
+async def get_bornes(
+    user: dict = Depends(get_current_user_role),
+    site_id: Optional[int] = Query(None, description="Filtrer par site"),
+    avec_alertes: bool = Query(False, description="Inclure uniquement les bornes avec alertes actives"),
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne la liste des bornes.
+    
+    Les permissions dépendent du rôle:
+    - **fournisseur**: Voir toutes les bornes
+    - **responsable_technique**: Voir les bornes de ses sites
+    - **responsable_agent**: Voir toutes les bornes (pour affectation)
+    - **agent**: Voir uniquement les bornes qui lui sont affectées
+    
+    Filtres disponibles:
+    - **site_id**: Filtrer par site
+    - **avec_alertes**: Retourner uniquement les bornes avec alertes actives
+    """
+    query = db.query(models.Borne).options(
+        joinedload(models.Borne.site),
+        joinedload(models.Borne.agent_affecte)
+    )
+    
+    # Filtrer par rôle
+    if user["role"] == "agent":
+        # Un agent ne voit que ses bornes affectées
+        query = query.filter(models.Borne.id_agent_affecte != None)
+    
+    # Filtrer par site
+    if site_id:
+        query = query.filter(models.Borne.id_site == site_id)
+    
+    # Filtrer par alertes actives
+    if avec_alertes:
+        borne_ids_avec_alertes = [
+            alerte.id_borne for alerte in get_alertes_actives(db)
+        ]
+        if borne_ids_avec_alertes:
+            query = query.filter(models.Borne.id_borne.in_(borne_ids_avec_alertes))
+        else:
+            return []
+    
+    bornes = query.all()
+    
+    # Enrichir les données avec les dernières mesures
+    result = []
+    for borne in bornes:
+        derniere_mesure = db.query(models.Mesure).filter(
+            models.Mesure.id_borne == borne.id_borne
+        ).order_by(models.Mesure.horodatage.desc()).first()
+        
+        borne_dict = {
+            **borne.__dict__,
+            "site_nom": borne.site.nom_site if borne.site else None,
+            "agent_nom": f"{borne.agent_affecte.prenom} {borne.agent_affecte.nom}" if borne.agent_affecte else None,
+            "dernier_niveau_gel": derniere_mesure.niveau_gel if derniere_mesure else None,
+            "dernier_niveau_batterie": derniere_mesure.niveau_batterie if derniere_mesure else None,
+            "derniere_mesure": derniere_mesure.horodatage if derniere_mesure else None
+        }
+        result.append(borne_dict)
+    
+    return result
+
+@router.get("/{borne_id}", response_model=schemas.BorneAvecDetails)
+async def get_borne(
+    borne_id: int,
+    user: dict = Depends(get_current_user_role),
+    db: Session = Depends(get_db)
+):
+    """
+    Récupère les détails d'une borne spécifique.
+    """
+    borne = db.query(models.Borne).options(
+        joinedload(models.Borne.site),
+        joinedload(models.Borne.agent_affecte)
+    ).filter(models.Borne.id_borne == borne_id).first()
+    
+    if not borne:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Borne ID {borne_id} non trouvée"
+        )
+    
+    # Récupérer la dernière mesure
+    derniere_mesure = db.query(models.Mesure).filter(
+        models.Mesure.id_borne == borne_id
+    ).order_by(models.Mesure.horodatage.desc()).first()
+    
+    # Récupérer les alertes actives
+    alertes = get_alertes_actives(db, borne_id)
+    
+    return {
+        **borne.__dict__,
+        "site_nom": borne.site.nom_site if borne.site else None,
+        "agent_nom": f"{borne.agent_affecte.prenom} {borne.agent_affecte.nom}" if borne.agent_affecte else None,
+        "dernier_niveau_gel": derniere_mesure.niveau_gel if derniere_mesure else None,
+        "dernier_niveau_batterie": derniere_mesure.niveau_batterie if derniere_mesure else None,
+        "derniere_mesure": derniere_mesure.horodatage if derniere_mesure else None,
+        "alertes_actives": len(alertes)
+    }
+
+@router.put("/{borne_id}/affecter", response_model=schemas.Borne)
+async def affecter_borne(
+    borne_id: int,
+    agent_id: int,
+    user: dict = Depends(get_current_user_role),
+    db: Session = Depends(get_db)
+):
+    """
+    Affecte une borne à un agent pour maintenance.
+    
+    **Permissions**: responsable_technique ou responsable_agent uniquement.
+    """
+    if user["role"] not in ["responsable_technique", "responsable_agent"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès interdit: seuls les responsables peuvent affecter des bornes"
+        )
+    
+    # Vérifier que la borne existe
+    borne = db.query(models.Borne).filter(models.Borne.id_borne == borne_id).first()
+    if not borne:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Borne ID {borne_id} non trouvée"
+        )
+    
+    # Vérifier que l'agent existe et a le bon rôle
+    agent = db.query(models.Utilisateur).filter(
+        models.Utilisateur.id_utilisateur == agent_id,
+        models.Utilisateur.role == "agent"
+    ).first()
+    
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent ID {agent_id} non trouvé ou n'a pas le rôle 'agent'"
+        )
+    
+    # Affecter la borne
+    borne.id_agent_affecte = agent_id
+    
+    try:
+        db.commit()
+        db.refresh(borne)
+        return borne
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de l'affectation: {str(e)}"
+        )
+
+@router.put("/{borne_id}/seuils", response_model=schemas.Borne)
+async def mettre_a_jour_seuils(
+    borne_id: int,
+    seuil_gel: int = Query(..., ge=1, le=100, description="Nouveau seuil d'alerte pour le gel (1-100%)"),
+    seuil_batterie: int = Query(..., ge=1, le=100, description="Nouveau seuil d'alerte pour la batterie (1-100%)"),
+    user: dict = Depends(get_current_user_role),
+    db: Session = Depends(get_db)
+):
+    """
+    Met à jour les seuils d'alerte d'une borne.
+    
+    **Permissions**: responsable_technique ou responsable_agent uniquement.
+    """
+    if user["role"] not in ["responsable_technique", "responsable_agent"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès interdit: seuls les responsables peuvent modifier les seuils"
+        )
+    
+    borne = db.query(models.Borne).filter(models.Borne.id_borne == borne_id).first()
+    
+    if not borne:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Borne ID {borne_id} non trouvée"
+        )
+    
+    borne.seuil_alerte_gel = seuil_gel
+    borne.seuil_alerte_batterie = seuil_batterie
+    
+    try:
+        db.commit()
+        db.refresh(borne)
+        return borne
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la mise à jour: {str(e)}"
+        )
+
+@router.get("/{borne_id}/alertes")
+async def get_alertes_borne(
+    borne_id: int,
+    user: dict = Depends(get_current_user_role),
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne les alertes d'une borne spécifique.
+    """
+    borne = db.query(models.Borne).filter(models.Borne.id_borne == borne_id).first()
+    
+    if not borne:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Borne ID {borne_id} non trouvée"
+        )
+    
+    alertes = get_alertes_actives(db, borne_id)
+    
+    return {
+        "borne_id": borne_id,
+        "nom_borne": borne.nom_borne,
+        "alertes": [
+            {
+                "id_alerte": a.id_alerte,
+                "type_alerte": a.type_alerte.value,
+                "niveau_valeur": a.niveau_valeur,
+                "statut": a.statut.value,
+                "date_declenchement": a.date_declenchement
+            } for a in alertes
+        ],
+        "total_alertes": len(alertes)
+    }
+
+
+==================== FICHIER : ./app/api/endpoints/__init__.py ====================
+
+
+==================== FICHIER : ./app/api/endpoints/mesures.py ====================
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from typing import List
+from datetime import datetime
+
+from app.database import get_db
+from app import models, schemas
+from app.core.alerts import verifier_et_creer_alertes
+
+router = APIRouter()
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def recevoir_mesure(
+    mesure: schemas.MesureCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint pour recevoir les données d'une borne.
+    
+    **Cet endpoint sera appelé par l'ESP32 après chaque utilisation.**
+    
+    - **uuid_esp**: Identifiant unique de la carte ESP32 (ex: "ESP32-001")
+    - **niveau_gel**: Pourcentage de gel restant (0-100)
+    - **niveau_batterie**: Pourcentage de batterie restante (0-100)
+    
+    Retourne la mesure enregistrée avec son ID et horodatage.
+    """
+    try:
+        # 1. Trouver la borne correspondante à l'uuid_esp
+        borne = db.query(models.Borne).filter(
+            models.Borne.uuid_esp == mesure.uuid_esp
+        ).first()
+        
+        if not borne:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Borne avec uuid_esp '{mesure.uuid_esp}' non trouvée"
+            )
+        
+        # 2. Créer la nouvelle mesure
+        nouvelle_mesure = models.Mesure(
+            id_borne=borne.id_borne,
+            niveau_gel=mesure.niveau_gel,
+            niveau_batterie=mesure.niveau_batterie
+        )
+        
+        db.add(nouvelle_mesure)
+        db.commit()
+        db.refresh(nouvelle_mesure)
+        
+        # 3. Vérifier si des alertes doivent être créées
+        verifier_et_creer_alertes(db, borne, nouvelle_mesure)
+        
+        # 4. Retourner un simple message de succès
+        return {
+            "message": "Mesure enregistrée avec succès",
+            "id_mesure": nouvelle_mesure.id_mesure,
+            "id_borne": nouvelle_mesure.id_borne,
+            "horodatage": nouvelle_mesure.horodatage.isoformat()
+        }
+        
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur d'intégrité des données"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur serveur: {str(e)}"
+        )
+
+@router.get("/borne/{borne_id}", response_model=List[schemas.Mesure])
+async def get_mesures_par_borne(
+    borne_id: int,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Récupère l'historique des mesures d'une borne spécifique.
+    
+    - **borne_id**: ID de la borne
+    - **limit**: Nombre maximum de mesures à retourner (par défaut: 100)
+    
+    Retourne la liste des mesures triées par date (plus récentes en premier).
+    """
+    mesures = db.query(models.Mesure).filter(
+        models.Mesure.id_borne == borne_id
+    ).order_by(
+        models.Mesure.horodatage.desc()
+    ).limit(limit).all()
+    
+    if not mesures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Aucune mesure trouvée pour la borne ID {borne_id}"
+        )
+    
+    return mesures
+
+@router.get("/derniere/borne/{borne_id}", response_model=schemas.Mesure)
+async def get_derniere_mesure(
+    borne_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Récupère la dernière mesure enregistrée pour une borne.
+    
+    Utile pour afficher l'état actuel d'une borne.
+    """
+    mesure = db.query(models.Mesure).filter(
+        models.Mesure.id_borne == borne_id
+    ).order_by(
+        models.Mesure.horodatage.desc()
+    ).first()
+    
+    if not mesure:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Aucune mesure trouvée pour la borne ID {borne_id}"
+        )
+    
+    return mesure
+
+@router.get("/stats/borne/{borne_id}")
+async def get_stats_borne(
+    borne_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne des statistiques pour une borne.
+    
+    Inclut:
+    - Dernière mesure
+    - Moyennes des niveaux
+    - Nombre total de mesures
+    """
+    mesures = db.query(models.Mesure).filter(
+        models.Mesure.id_borne == borne_id
+    ).all()
+    
+    if not mesures:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Aucune mesure trouvée pour la borne ID {borne_id}"
+        )
+    
+    dernieres_mesures = mesures[:10]  # 10 dernières mesures
+    
+    stats = {
+        "borne_id": borne_id,
+        "total_mesures": len(mesures),
+        "derniere_mesure": {
+            "niveau_gel": mesures[0].niveau_gel if mesures else None,
+            "niveau_batterie": mesures[0].niveau_batterie if mesures else None,
+            "horodatage": mesures[0].horodatage if mesures else None
+        },
+        "moyennes": {
+            "gel": sum(m.niveau_gel for m in mesures) / len(mesures) if mesures else 0,
+            "batterie": sum(m.niveau_batterie for m in mesures) / len(mesures) if mesures else 0
+        },
+        "historique_recent": [
+            {
+                "niveau_gel": m.niveau_gel,
+                "niveau_batterie": m.niveau_batterie,
+                "horodatage": m.horodatage
+            } for m in dernieres_mesures
+        ]
+    }
+    
+    return stats
+
+
+==================== FICHIER : ./app/core/config.py ====================
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    # Base de données
+    DATABASE_URL: str = "mysql+pymysql://api_user:apipassword@localhost:3306/borne_gel_db"
+    
+    # JWT (JSON Web Tokens pour l'authentification)
+    JWT_SECRET_KEY: str = "votre_super_secret_key_changez_moi_en_production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Application
+    DEBUG: bool = True
+    
+    class Config:
+        env_file = ".env"
+
+# Créer une instance de settings
+settings = Settings()
+
+
+==================== FICHIER : ./app/core/security.py ====================
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi.security import OAuth2PasswordBearer
+from app.core.config import settings
+
+# Configuration du hachage des mots de passe
+# Utilisons sha256_crypt au lieu de bcrypt pour éviter le problème de version
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+
+# Pour OAuth2
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# Fonctions pour le hachage et vérification des mots de passe
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Vérifie si un mot de passe en clair correspond au hash."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Crée un hash sécurisé d'un mot de passe."""
+    return pwd_context.hash(password)
+
+# Fonctions pour les tokens JWT
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Crée un token JWT d'accès."""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    
+    return encoded_jwt
+
+def verify_token(token: str) -> Optional[dict]:
+    """
+    Vérifie et décode un token JWT.
+    
+    Retourne les données décodées si le token est valide.
+    Retourne None si le token est invalide.
+    """
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+def get_current_user_email(token: str) -> Optional[str]:
+    """
+    Extrait l'email de l'utilisateur depuis un token JWT.
+    """
+    payload = verify_token(token)
+    if payload:
+        return payload.get("sub")  # "sub" est le standard JWT pour le sujet (ici l'email)
+    return None
+
+
+==================== FICHIER : ./app/core/alerts.py ====================
+from sqlalchemy.orm import Session
+from typing import Optional
+from app import models
+from datetime import datetime
+
+def verifier_et_creer_alertes(db: Session, borne: models.Borne, mesure: models.Mesure):
+    """
+    Vérifie si une nouvelle mesure doit générer des alertes.
+    
+    Cette fonction est appelée après chaque enregistrement de mesure.
+    Elle vérifie les seuils de gel et batterie et crée des alertes si nécessaire.
+    """
+    alertes_crees = []
+    
+    # Vérifier le niveau de gel
+    if mesure.niveau_gel <= 5:  # Niveau critique
+        alerte = models.Alerte(
+            id_borne=borne.id_borne,
+            type_alerte=models.TypeAlerteEnum.GEL_CRITIQUE,
+            niveau_valeur=mesure.niveau_gel,
+            statut=models.StatutAlerteEnum.NOUVELLE
+        )
+        db.add(alerte)
+        alertes_crees.append(alerte)
+        
+    elif mesure.niveau_gel <= borne.seuil_alerte_gel:
+        alerte = models.Alerte(
+            id_borne=borne.id_borne,
+            type_alerte=models.TypeAlerteEnum.GEL_BAS,
+            niveau_valeur=mesure.niveau_gel,
+            statut=models.StatutAlerteEnum.NOUVELLE
+        )
+        db.add(alerte)
+        alertes_crees.append(alerte)
+    
+    # Vérifier le niveau de batterie
+    if mesure.niveau_batterie <= 5:  # Niveau critique
+        alerte = models.Alerte(
+            id_borne=borne.id_borne,
+            type_alerte=models.TypeAlerteEnum.BATTERIE_CRITIQUE,
+            niveau_valeur=mesure.niveau_batterie,
+            statut=models.StatutAlerteEnum.NOUVELLE
+        )
+        db.add(alerte)
+        alertes_crees.append(alerte)
+        
+    elif mesure.niveau_batterie <= borne.seuil_alerte_batterie:
+        alerte = models.Alerte(
+            id_borne=borne.id_borne,
+            type_alerte=models.TypeAlerteEnum.BATTERIE_BASSE,
+            niveau_valeur=mesure.niveau_batterie,
+            statut=models.StatutAlerteEnum.NOUVELLE
+        )
+        db.add(alerte)
+        alertes_crees.append(alerte)
+    
+    if alertes_crees:
+        db.commit()
+        for alerte in alertes_crees:
+            db.refresh(alerte)
+    
+    return alertes_crees
+
+def get_alertes_actives(db: Session, borne_id: Optional[int] = None):
+    """
+    Récupère toutes les alertes actives (non résolues).
+    
+    Si borne_id est spécifié, ne retourne que les alertes de cette borne.
+    """
+    query = db.query(models.Alerte).filter(
+        models.Alerte.statut.in_([models.StatutAlerteEnum.NOUVELLE, models.StatutAlerteEnum.ASSIGNEE])
+    )
+    
+    if borne_id:
+        query = query.filter(models.Alerte.id_borne == borne_id)
+    
+    return query.order_by(models.Alerte.date_declenchement.desc()).all()
+
+def resoudre_alerte(db: Session, alerte_id: int, agent_id: int, commentaire: str = ""):
+    """
+    Marque une alerte comme résolue.
+    
+    Crée également une intervention pour tracer l'action.
+    """
+    alerte = db.query(models.Alerte).filter(models.Alerte.id_alerte == alerte_id).first()
+    
+    if not alerte:
+        return None
+    
+    # Mettre à jour l'alerte
+    alerte.statut = models.StatutAlerteEnum.RESOLUE
+    alerte.date_resolution = datetime.utcnow()
+    
+    # Créer une intervention correspondante
+    if alerte.type_alerte in [models.TypeAlerteEnum.GEL_BAS, models.TypeAlerteEnum.GEL_CRITIQUE]:
+        type_intervention = models.TypeInterventionEnum.REMPLISSAGE_GEL
+    else:
+        type_intervention = models.TypeInterventionEnum.CHANGEMENT_BATTERIE
+    
+    intervention = models.Intervention(
+        id_borne=alerte.id_borne,
+        id_agent=agent_id,
+        type_intervention=type_intervention,
+        commentaire=commentaire or f"Résolution alerte {alerte.type_alerte.value}"
+    )
+    
+    db.add(intervention)
+    db.commit()
+    db.refresh(alerte)
+    db.refresh(intervention)
+    
+    return alerte
+
+
+==================== FICHIER : ./app/core/__init__.py ====================
