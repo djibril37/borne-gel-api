@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS utilisateurs (
     mot_de_passe_hash VARCHAR(255) NOT NULL,
     nom VARCHAR(100),
     prenom VARCHAR(100),
-    role ENUM('FOURNISSEUR', 'RESPONSABLE_TECHNIQUE', 'RESPONSABLE_AGENT', 'AGENT') NOT NULL,
+    role ENUM('fournisseur', 'responsable_technique', 'responsable_agent', 'agent') NOT NULL,
     date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
     est_actif BOOLEAN DEFAULT TRUE
 );
