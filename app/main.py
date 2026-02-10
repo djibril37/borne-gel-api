@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from datetime import datetime
 
 # Import des routeurs
 from app.api.endpoints import mesures, auth, bornes
@@ -18,13 +19,13 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Configuration CORS
+# Configuration CORS (Mise à jour pour une compatibilité totale)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Autorise toutes les origines (indispensable pour le dev entre Codespaces et Local)
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Autorise toutes les méthodes (GET, POST, PUT, OPTIONS, etc.)
+    allow_headers=["*"],  # Autorise tous les headers (Authorization, Content-Type, etc.)
 )
 
 # Inclure les routeurs
@@ -39,13 +40,12 @@ async def root():
         "message": "Bienvenue sur l'API Borne Gel Connectée",
         "version": "1.0.0",
         "documentation": "/docs",
-        "description": "API pour la gestion des bornes de gel hydroalcoolique connectées"
+        "status": "online"
     }
 
 # Route de santé
 @app.get("/health", tags=["Système"])
 async def health_check():
-    from datetime import datetime
     return {
         "status": "healthy",
         "service": "borne-gel-api",
@@ -55,9 +55,14 @@ async def health_check():
 # Route d'information
 @app.get("/info", tags=["Système"])
 async def system_info():
+    # Sécurisation de l'affichage de l'URL DB
+    db_display = "Not Configured"
+    if settings.DATABASE_URL:
+        db_display = settings.DATABASE_URL.split('@')[-1] # On ne montre que l'hôte, pas le mot de passe
+        
     return {
         "debug_mode": settings.DEBUG,
-        "database_url": settings.DATABASE_URL[:20] + "..." if settings.DATABASE_URL else None,
+        "database_host": db_display,
         "jwt_algorithm": settings.JWT_ALGORITHM,
         "token_expire_minutes": settings.ACCESS_TOKEN_EXPIRE_MINUTES
     }
