@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -38,6 +37,16 @@ services:
     volumes:
       - ./app:/code/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # --- AJOUT DU SERVICE ADMINER ---
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql  # On attend que le service 'mysql' soit prêt
+  # --------------------------------
 
 volumes:
   mysql_data:

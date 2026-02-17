@@ -85,6 +85,47 @@ async def get_bornes(
     
     return result
 
+# --- ROUTE AJOUTÉE POUR LA CRÉATION ---
+@router.post("/", response_model=schemas.Borne, status_code=status.HTTP_201_CREATED)
+async def create_borne(
+    borne: schemas.BorneCreate,
+    user: dict = Depends(get_current_user_role),
+    db: Session = Depends(get_db)
+):
+    """
+    Crée une nouvelle borne.
+    Permission : Fournisseur ou Responsable Technique uniquement.
+    """
+    # 1. Vérification des droits
+    if user["role"] not in ["fournisseur", "responsable_technique"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seuls les fournisseurs et responsables techniques peuvent créer des bornes"
+        )
+
+    # 2. Vérifier si l'UUID existe déjà (Anti-Doublon)
+    borne_existante = db.query(models.Borne).filter(models.Borne.uuid_esp == borne.uuid_esp).first()
+    if borne_existante:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Une borne avec l'UUID '{borne.uuid_esp}' existe déjà."
+        )
+
+    # 3. Création et Sauvegarde
+    new_borne = models.Borne(**borne.dict())
+    db.add(new_borne)
+    try:
+        db.commit()
+        db.refresh(new_borne)
+        return new_borne
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la création : {str(e)}"
+        )
+# --------------------------------------
+
 @router.get("/{borne_id}", response_model=schemas.BorneAvecDetails)
 async def get_borne(
     borne_id: int,

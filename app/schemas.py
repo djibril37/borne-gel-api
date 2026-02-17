@@ -41,6 +41,11 @@ class BorneBase(BaseModel):
     seuil_alerte_batterie: int = Field(default=10, ge=1, le=100)
     id_agent_affecte: Optional[int] = None
 
+    # --- AJOUTER CECI APRÈS class BorneBase ---
+class BorneCreate(BorneBase):
+    pass
+# ------------------------------------------
+
 class UtilisateurBase(BaseModel):
     email: EmailStr
     nom: str = Field(..., max_length=100)
